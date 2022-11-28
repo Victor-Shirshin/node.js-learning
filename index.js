@@ -1,48 +1,57 @@
-const yargs = require("yargs");
-const { addNote, getNotes, removeNoteById } = require("./notes.controller");
-const packageJson = require("./package.json");
+const express = require("express");
+const { dirname } = require("path");
+const path = require("path");
+const { addNote, getNotes, removeNoteById, editNote } = require("./notes.controller");
 
-yargs.version(packageJson.version);
+const port = 3000;
+const app = express();
 
-yargs.command({
-  command: "add",
-  descrebe: "Add new note to list",
-  builder: {
-    title: {
-      type: "string",
-      describe: "Note title",
-      demandOption: true
-    }
-  },
-  handler({ title }) {
-    console.log("Add command", title);
-    addNote(title);
-  }
-})
+// переопределяем базовые настройки express
+app.set("view engine", "ejs");
+app.set("views", "pages");
 
-yargs.command({
-  command: "list",
-  descrebe: "Print all notes",
-  async handler() {
-    const notes = await getNotes()
-    notes.map(item => console.log("Here is the list of notes:", `${item.id} ${item.title}`));
-  }
-})
+// научить express c какими данными работаем middleware
+app.use(express.static(path.resolve(__dirname, "public")));
+app.use(express.urlencoded({
+  extended: true
+}));
+app.use(express.json());
 
-yargs.command({
-  command: "remove",
-  descrebe: "Remove notes by id",
-  builder: {
-    id: {
-      type: "number",
-      descrebe: "Remove note by id",
-      demandOption: true
-    }
-  },
-  async handler({ id }) {
-    await removeNoteById(id);
-    console.log("noteByIdRemoved", id);
-  }
-})
+app.get("/", async (req, res) => {
+  res.render("index", {
+    title: "Express App",
+    notes: await getNotes(),
+    created: false
+  });
+});
 
-yargs.parse();
+app.post("/", async (req, res) => {
+  await addNote(req.body.title);
+  res.render("index", {
+    title: "Express App",
+    notes: await getNotes(),
+    created: true
+  });
+});
+
+app.put("/:id", async (req, res) => {
+  await editNote(req.params.id, req.body.title);
+  res.render("index", {
+    title: "Express App",
+    notes: await getNotes(),
+    created: false
+  });
+});
+
+app.delete("/:id", async (req, res) => {
+  await removeNoteById(req.params.id);
+  res.render("index", {
+    title: "Express App",
+    notes: await getNotes(),
+    created: false
+  });
+});
+
+app.listen(port, () => {
+  console.log(`Server has been started ${port}....`);
+});
